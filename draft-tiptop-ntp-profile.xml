@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?xml-model href="rfc7991bis.rnc"?>
+<?xml-stylesheet type="text/xsl" href="rfc2629.xslt" ?>
+<!DOCTYPE rfc [
+<!ENTITY nbsp "&#160;">
+<!ENTITY zwsp "&#8203;">
+<!ENTITY nbhy "&#8209;">
+<!ENTITY wj "&#8288;">
+]>
+<rfc xmlns:xi="http://www.w3.org/2001/XInclude" category="info" docName="draft-many-tiptop-ntp-profile-00" ipr="trust200902" obsoletes="" updates="" submissionType="IETF" xml:lang="en" version="3">
+  <front>
+    <title>NTP Profile for Deep Space</title>
+    <seriesInfo name="Internet-Draft" value="draft-many-tiptop-ntp-profile-00"/>
+    <author fullname="Marc Blanchet" initials="MB">
+      <organization>Viagenie</organization>
+      <address>
+        <postal>
+          <country>Canada</country>
+        </postal>
+        <email>marc.blanchet@viagenie.ca</email>
+      </address>
+    </author>
+    <area>Internet</area>
+    <workgroup>Internet Engineering Task Force</workgroup>
+    <keyword>ntp</keyword>
+    <keyword>time synchronization</keyword>
+    <keyword>space</keyword>
+    <keyword>ip</keyword>
+    <keyword>deep space</keyword>
+    <keyword>delay</keyword>
+    <abstract>
+      <t>Deep space communications involve long delays (e.g., Earth to Mars one-way delay is 4-24 minutes) and intermittent communications, because of orbital dynamics. This document defines an NTP profile for deep space. NTP on-wire protocol is indifferent to path delays and transfers time in a single round trip at any distance. However, some algorithmic constants and defaults such as distance threshold, dispersion bounds, poll intervals and burst modes, need to be tailored to the deep space scenario. The use of secured NTP is also discussed. Limitations and applicability is also covered. Simulations using open-source implementations were used to confirm the profile.</t>
+    </abstract>
+  </front>
+  <middle>
+    <section anchor="intro">
+      <name>Introduction</name>
+      <t>Deep space networks based on IP, as described in <xref target="I-D.ietf-tiptop-ip-architecture"/>, contain nodes whose clocks must be synchronized or at least related to Earth time scales, for navigation, science data timestamping, security protocols, and network operations. NTP <xref target="RFC5905"/> is the most widely deployed IP time synchronization protocol, which makes it a natural candidate for deep space time distribution. However, parts of its specification's algorithms and defaults, and mechanisms commonly layered on it, assume terrestrial round-trip times.</t>
+      <t>The key characteristics of deep space communications, the connectivity scenarios, and the derived requirements are described in <xref target="I-D.ietf-tiptop-usecase"/>.</t>
+      <t>Space missions have been using precise Position, Navigation and Timing(PNT) for various purposes, using specific channels. The use of NTP is not meant to replace PNT, but to provide a time synchronisation service to any computer in spacecrafts, in their payload, as well as assets on celestial body surface, where PNT is not available.</t>
+    </section>
+    <section anchor="deployment">
+      <name>Deployment Model</name>
+      <t>In one time synchronization deployment model in deep space, the reference clocks and stratum 1 servers live on Earth. The NTP clients are the remote deep space assets: spacecrafts, orbiters, relays, landers, rovers, etc.</t>
+      <t>In addition, intermediate nodes such as relays, gateways or servers on surface networks may additionally serve time onward to assets behind them, acting as clients toward Earth and servers toward their local network, at one stratum below their Earth source.</t>
+      <t>Finally, it is expected that surface or orbital networks around celestial bodies may have reference clocks and stratum 1 servers to serve the celestial body surface network. In this case, it is expected that high connectivity and low latency similar to Earth Internet will be typical. The adaptations if any needed for this scenario are not discussed in this memo.</t>
+      <t>This profile only affects the NTP client, which is one expected to be in deep space. No changes are needed for the server, since it is stateless request processing (Section 8 of <xref target="RFC5905"/>) with no delay-sensitive element. Therefore, it is imperative that the client is properly configured with the right timers.</t>
+    </section>
+    <section anchor="onwire">
+      <name>On-Wire Protocol onto Any Distance</name>
+      <t>The NTP client/server exchange (mode 3 request, mode 4 response, Section 8 of <xref target="RFC5905"/>) is a single stateless request/response carrying four timestamps: T1 (client transmit), T2 (server receive), T3 (server transmit), T4 (client receive). Nothing in the on-wire protocol bounds the interval between T1 and T4: the offset and delay equations of Section 8 of <xref target="RFC5905"/> are defined for any round-trip time. One time transfer therefore costs exactly one round trip at any distance. The measurements confirm this from an 8-minute up to a 20-hour RTT, with a single unmodified exchange each time (<xref target="measurements"/>).</t>
+      <t>Two client-side requirements follow directly from the specification and apply to every client type:</t>
+      <ul>
+        <li>The client's response timeout must exceed the number of round trips the operation needs times the maximum RTT of the mission (propagation plus any scheduled contact gap, as computed in <xref target="I-D.ietf-tiptop-usecase"/>), plus margin. While the specifications place no limit, common defaults in implementations are a few seconds (see <xref target="measurements"/>), unsuitable for most deep space scenarios.</li>
+        <li>The client's poll interval must exceed the maximum RTT. Section 8 of <xref target="RFC5905"/> requires a client to validate a response against the origin timestamp of its most recent request (the "bogus packet" test, an anti-replay measure) and describes a single in-flight exchange per association. A client polling faster than the RTT replaces its expected origin before each response arrives, so every response fails the origin test and is discarded; the protocol then never synchronizes, even though every packet is delivered intact. The specification's poll range accommodates most deep space missions without change: MAXPOLL is 17 (2^17 s, about 36 hours, Section 7.2 of <xref target="RFC5905"/>).</li>
+      </ul>
+    </section>
+    <section anchor="versions">
+      <name>Protocol Versions</name>
+      <t>The client/server exchange has been wire-compatible since NTPv1, and no version of the protocol changes its delay behavior: the version field selects header interpretation, not timing machinery, and every version transfers time in the same single exchange. This holds for the current NTPv4 <xref target="RFC5905"/>, for its SNTP subset (Section 14 of <xref target="RFC5905"/>), for the earlier versions still accepted by deployed servers, and for the draft NTPv5 <xref target="I-D.ietf-ntp-ntpv5"/>, whose changes are not relevant to delay.</t>
+      <t>The measurements confirm version independence directly: client-mode exchanges with version fields 1 through 4 over the same 480-second RTT link returned offsets agreeing within 11 milliseconds, each in one round trip, and a native draft-NTPv5 client/server pair completed its version 5 exchanges, extension fields included, across the same link exactly as it did version 4 (<xref target="measurements"/>).</t>
+    </section>
+    <section anchor="speclimits">
+      <name>Delay Limits in the Specification's Algorithms and Defaults</name>
+      <t>While the on-wire protocol is delay-indifferent, the mitigation and discipline algorithms specified alongside it (Sections 10 through 13 of <xref target="RFC5905"/>) contain constants and defaults sized for terrestrial delays. These, not the protocol, are where deep space breaks standard NTP. This deep space profile addresses the following.</t>
+      <section anchor="distlimit">
+        <name>Distance Threshold and Dispersion Bounds</name>
+        <t>The selection algorithm (Section 11.2.1 of <xref target="RFC5905"/>) rejects any source whose root synchronization distance exceeds the distance threshold MAXDIST, whose default is 1.5 seconds (Section 7.2 of <xref target="RFC5905"/>). The root distance includes half the round-trip delay, so with default constants every source beyond a 3-second RTT (roughly the Earth-Moon distance) is structurally unselectable: the algorithm as specified can never synchronize to a deep space source, regardless of packet delivery. The related dispersion constant MAXDISP (16 seconds, Section 7.2 of <xref target="RFC5905"/>) similarly saturates. Deep space clients must raise the distance threshold (and any implementation analog, such as per-source delay ceilings) to at least maxRTT/2 plus margin. The measurements confirm both the failure with defaults and the success once raised.</t>
+      </section>
+      <section anchor="pollburst">
+        <name>Poll Defaults, Burst Modes, and Reachability</name>
+        <t>Default poll intervals (commonly 2^6 = 64 seconds) sit below deep space RTTs and trigger the origin-test failure of <xref target="onwire"/>; the poll interval must be configured above the maximum RTT, which the specified poll range permits (Section 7.2 of <xref target="RFC5905"/>). Burst features that send several packets seconds apart at startup (the burst and iburst behaviors of the poll process, Section 13.1 of <xref target="RFC5905"/>) must not be used: all packets of the burst are in flight simultaneously on a long-delay path, at most the last can pass the origin test, and an implementation that concludes unreachability from the unanswered burst gives up long before any response can physically exist. The reachability register (Section 13.1 of <xref target="RFC5905"/>) is an 8-poll shift register and is compatible with deep space operation provided the poll interval exceeds the RTT, so that each poll's response can arrive before the next poll shifts the register.</t>
+      </section>
+      <section anchor="filterlimit">
+        <name>Clock Filter Sample Requirements</name>
+        <t>The clock filter algorithm (Section 10 of <xref target="RFC5905"/>) selects among the last several samples, and implementations generally require several accepted samples before the source statistics permit selection and clock update. With the poll interval necessarily above the RTT, a full mitigation pipeline therefore delivers its first correction only after several polls: approximately N x poll + 1 RTT for an N-sample requirement, i.e., 3 to 5 RTTs in practice (measured: about 3 RTTs with a 3-sample implementation, <xref target="measurements"/>). Missions needing a first correction in one round trip should use an SNTP-style client (Section 14 of <xref target="RFC5905"/>), which applies a single exchange directly; the trade-off is forgoing the filter's protection against outliers, likely acceptable on a point-to-point scheduled link whose delay distribution is deterministic.</t>
+      </section>
+    </section>
+    <section anchor="accuracy">
+      <name>Accuracy over Symmetric Paths</name>
+      <t>The offset equation of Section 8 of <xref target="RFC5905"/> is exact when the forward and reverse delays are equal, whatever their magnitude; the well-known error bound of plus or minus RTT/2 is the bound on asymmetry, not on delay. Deep space delay therefore costs nothing in accuracy by itself. The measurements confirm this at scale: a deliberate 300-second clock error was corrected to within 0.1 to 0.25 seconds by a single exchange at RTTs of 8 minutes, 44 minutes, 2 hours, and 20 hours, with no degradation trend across three orders of magnitude of delay (<xref target="measurements"/>).</t>
+      <t>A correction is one RTT stale when applied: at a 20-hour RTT, the residual error is dominated by the client oscillator's drift over that RTT, not by the protocol.</t>
+    </section>
+    <section anchor="asymmetry">
+      <name>Path Delay Asymmetry</name>
+      <t>When the forward (client to server) delay dfwd and the reverse delay drev differ, substituting into the offset equation of Section 8 of <xref target="RFC5905"/> shows the computed offset is wrong by exactly (dfwd - drev)/2, while the computed delay still equals dfwd + drev. The client observes only the sum, so the error is invisible to the protocol: no version, extension, or algorithm of NTP can detect it from the four timestamps. The measurements trace the predicted bias precisely, holding the RTT constant while varying the split, with two independent client implementations agreeing on the (wrong) result within 40 milliseconds (<xref target="measurements"/>): a client on an asymmetric path synchronizes confidently to a clock that can be wrong by minutes.</t>
+      <t>Delay asymmetry is expected in deep space deployments, specially for intermittence scenarios where relays hold packets in buffer until the next opportunity(see <xref target="I-D.ietf-tiptop-ip-architecture"/>), which may be different on the reverse path. Therefore:</t>
+      <ul>
+        <li>Time synchronization exchanges should be scheduled so that both directions traverse the link back to back within one contact, avoiding intermittence buffering holds between request and response.</li>
+        <li>Where directional delays are predictable (rate differences, known schedules, ephemeris), clients may correct the computed offset by the known (dfwd - drev)/2 before applying it. However, extra care should be taken given the implicit assumptions.</li>
+        <li>Time synchronization should not be performed across paths whose asymmetry is unknown and potentially larger than the mission's accuracy requirement; a wrong-by-minutes clock delivered with full confidence is worse than a flagged absence of synchronization.</li>
+      </ul>
+    </section>
+    <section anchor="nts">
+      <name>Secured NTP: Network Time Security</name>
+      <t>NTS <xref target="RFC8915"/> bootstraps per-request authentication through NTS-KE, a TLS 1.3 handshake over TCP on port 4460 (Section 4 of <xref target="RFC8915"/>), which means 4 to 5 RTTs to complete the TCP connection establishment, TLS 1.3 handshake, the NTS-KE exchange and the first authenticated NTP exchange. Cold NTS establishment over a deep space delay is therefore not recommended. Missions requiring authenticated time should pre-provision NTS keys and cookie material before launch or over a prior contact, sized (using the cookie-supply maintenance provisions of Section 5.7 of <xref target="RFC8915"/>) to cover the interval between re-keying opportunities; alternatively, symmetric-key authentication of NTP packets (the optional MAC field of Section 7.3 of <xref target="RFC5905"/> with pre-shared keys) provides origin authentication with zero additional round trips and no handshake, at the cost of manual key management.</t>
+    </section>
+    <section anchor="implreq">
+      <name>Implementation Requirements for Flight</name>
+      <t>An NTP client implementation intended for flight:</t>
+      <ul>
+        <li>must expose every timing-related constant as runtime configuration: response timeouts, poll intervals and their bounds, response-acceptance (origin validity) windows, sample-count requirements, distance and delay thresholds, and any handshake or key-establishment timers. A single compiled-in constant below the mission RTT anywhere in the receive path is sufficient to make synchronization impossible.</li>
+        <li>must scale response-acceptance windows with the configured poll interval rather than fixing them, so that configuring poll above the RTT is sufficient.</li>
+        <li>should support a single-exchange mode (SNTP-style, Section 14 of <xref target="RFC5905"/>) for one-RTT corrections, an asymmetry correction input per <xref target="asymmetry"/>, and frequency (rate) discipline per <xref target="accuracy"/>.</li>
+      </ul>
+    </section>
+    <section anchor="applicability">
+      <name>Applicability to the Deep Space Connectivity Scenarios</name>
+      <t>This section maps the profile to the connectivity scenarios of <xref target="I-D.ietf-tiptop-usecase"/>: Earth to cruising spacecraft (CS), Earth-Moon with full (LF) or intermittent (LI) connectivity, Earth-Mars with full (MF) or intermittent (MI) connectivity, and solar conjunction (SC).</t>
+      <table anchor="appltable">
+        <name>Synchronization applicability per scenario</name>
+        <thead>
+          <tr><th>Scenario</th><th>Single-exchange (SNTP)</th><th>Full mitigation pipeline</th><th>NTS</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>LF (Moon, full)</td><td>yes, timeouts only</td><td>yes; RTT just exceeds default MAXDIST, raise threshold</td><td>yes, KE seconds</td></tr>
+          <tr><td>LI (Moon, intermittent)</td><td>yes, timeouts cover gaps</td><td>yes; poll above RTT plus gap</td><td>yes if keys outlive gaps</td></tr>
+          <tr><td>CS (cruising)</td><td>yes, timeouts track ephemeris</td><td>thresholds and poll grow with ephemeris; verify ceilings pre-launch</td><td>pre-provisioned keys once RTT exceeds seconds</td></tr>
+          <tr><td>MF (Mars, full)</td><td>yes, 1 RTT per sync</td><td>3-5 RTT per first correction, all thresholds raised</td><td>pre-provisioned keys only</td></tr>
+          <tr><td>MI (Mars, intermittent)</td><td>yes if exchange fits one contact</td><td>poll and sample budget must fit contact plan</td><td>pre-provisioned keys only</td></tr>
+          <tr><td>SC (conjunction)</td><td>suspend; free-run on oscillator</td><td>suspend; rate discipline carries through</td><td>keys must outlive blackout</td></tr>
+        </tbody>
+      </table>
+      <t>Scenario notes:</t>
+      <ul>
+        <li>LF and LI: at a 2.6-second Moon RTT, terrestrial defaults mostly survive, with two exceptions already visible: the default distance threshold of <xref target="distlimit"/> sits at the Moon RTT boundary, and any sub-RTT hardcoded response window (<xref target="implreq"/>) already fails on an intermittent lunar path whose effective RTT includes a contact gap. The Moon is the last place where defaults mostly work.</li>
+        <li>CS: the RTT grows continuously; client timeouts, poll intervals and thresholds should be driven from the ephemeris. Each fixed ceiling in the client is crossed at a predictable mission date; per <xref target="implreq"/>, missions must verify before launch that none lies inside the mission profile.</li>
+        <li>MF and MI: the single-exchange client with an ephemeris-driven timeout is the base: one RTT per synchronization, accuracy limited only by path asymmetry (<xref target="asymmetry"/>) and oscillator drift over the RTT. In MI, the request and its response must be scheduled within the same contact, or the buffering becomes a large asymmetry error.</li>
+        <li>SC: synchronization traffic ceases for weeks; clocks free-run. Requests should not be sent during a blackout, and if they are, queued time-sync requests should be discarded rather than answered after a blackout, since a response to a weeks-old request carries a weeks-scale asymmetry error. Requests should be freshly issued after contact resumes.</li>
+      </ul>
+    </section>
+    <section anchor="timezone">
+        <name>Time Zones and References</name>
+        <t>NTP uses UTC as its time reference, which sets the clocks of all spacecrafts based on the Earth UTC. Missions have been using various time references<xref target="nasatime"/> and a Lunar Timezone<xref target="lunartimezone"/> is being defined. Any non UTC reference is outside the scope of this document.</t>
+    </section>
+    <section anchor="security">
+      <name>Security Considerations</name>
+      <t>Unauthenticated NTP over deep space inherits the usual NTP risks as discussed in <xref target="RFC5905"/>. This profile changes the security posture in the following ways.</t>
+      <t>FWidening response-acceptance windows to one RTT or more (the origin validity implied by <xref target="onwire"/>) widens the interval during which a captured response can be substituted or delayed toward the client by the same amount. The origin timestamp still binds a response to a specific request (Section 8 of <xref target="RFC5905"/>), so the exposure is response substitution and delay, not arbitrary replay.</t>
+      <t>Successful delay attacks are stronger: per <xref target="asymmetry"/>, an attacker (or an innocent relay schedule) that asymmetrically delays one direction by D shifts the client's clock by D/2 with no protocol-visible indication, and the acceptable delay at Mars is minutes to hours, giving an on-path attacker minutes-to-hours of undetectable clock displacement. No NTP version detects this; only external knowledge (ephemeris-based delay prediction, plausibility bounds on the clock correction, redundant paths) bounds it. Missions may apply mission-derived sanity bounds to any computed correction before applying it.</t>
+      <t>The NTS cold key establishment is impractical in most scenarios if done during the mission. Therefore, NTS-enabled missions will fly long-lived pre-provisioned key and cookie material, increasing the value of that material. Symmetric-key MAC authentication avoids the handshake entirely.</t>
+    </section>
+    <section anchor="iana">
+      <name>IANA Considerations</name>
+      <t>This document has no IANA actions.</t>
+    </section>
+    <section anchor="ack">
+      <name>Acknowledgements</name>
+      <t>The following people provided useful comments to improve this document (in no specific order): Hal Murray</t>
+    </section>
+  </middle>
+  <back>
+    <references>
+      <name>References</name>
+      <references>
+        <name>Informative References</name>
+        <xi:include href="https://www.rfc-editor.org/refs/bibxml/reference.RFC.5905.xml"/>
+        <xi:include href="https://www.rfc-editor.org/refs/bibxml/reference.RFC.8915.xml"/>
+        <xi:include href="https://bib.ietf.org/public/rfc/bibxml3/reference.I-D.ietf-ntp-ntpv5.xml"/>
+        <xi:include href="https://bib.ietf.org/public/rfc/bibxml3/reference.I-D.ietf-tiptop-usecase.xml"/>
+        <xi:include href="https://bib.ietf.org/public/rfc/bibxml3/reference.I-D.ietf-tiptop-ip-architecture.xml"/>
+        <reference anchor="NTPSEC" target="https://gitlab.com/NTPsec/ntpsec">
+          <front>
+            <title>NTPsec: a secure, hardened NTP implementation (version 1.2.3)</title>
+            <author>
+              <organization>NTPsec Project</organization>
+            </author>
+            <date year="2026"/>
+          </front>
+        </reference>
+        <reference anchor="CHRONY" target="https://gitlab.com/chrony/chrony">
+          <front>
+            <title>chrony: a versatile implementation of NTP (version 4.8)</title>
+            <author>
+              <organization>chrony project</organization>
+            </author>
+            <date year="2026"/>
+          </front>
+        </reference>
+        <reference anchor="NTPORG" target="https://www.ntp.org">
+          <front>
+            <title>The NTP Reference Implementation (version 4.2.8p18)</title>
+            <author>
+              <organization>Network Time Foundation</organization>
+            </author>
+            <date year="2024"/>
+          </front>
+        </reference>
+        <reference anchor="NTPDRS" target="https://github.com/pendulum-project/ntpd-rs">
+          <front>
+            <title>ntpd-rs: a full-featured implementation of NTP with NTS support (version 1.9.0)</title>
+            <author>
+              <organization>Project Pendulum</organization>
+            </author>
+            <date year="2026"/>
+          </front>
+        </reference>
+        <reference anchor="nasatime" target="https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/time.html">
+          <front>
+            <title>SPICE Time Subsystem</title>
+            <author>
+              <organization>NASA Jet Propulsion Laboratory, Navigation and Ancillary Information Facility (NAIF)</organization>
+            </author>
+            <date year="2021" month="December"/>
+          </front>
+        </reference>
+        <reference anchor="lunartimezone" target="https://www.nasa.gov/general/nasa-to-develop-lunar-time-standard-for-exploration-initiatives/">
+          <front>
+            <title>NASA to Develop Lunar Time Standard for Exploration Initiatives</title>
+            <author>
+              <organization>NASA</organization>
+            </author>
+            <date year="2024" month="September"/>
+          </front>
+        </reference>
+        <reference anchor="deepspace_simulations" target="https://github.com/deepspaceip/deepspace-ip-simulations">
+          <front>
+            <title>Deepspace Simulations of Transport and Management Protocols</title>
+            <author>
+              <organization>Marc Blanchet</organization>
+            </author>
+            <date year="2026" month="August"/>
+          </front>
+        </reference>
+      </references>
+    </references>
+    <section anchor="measurements">
+      <name>Measurement Campaign Summary</name>
+      <t>This appendix summarizes the emulation campaign backing the analysis of the document. Full inputs, captured packets, per-run outputs and analysis are published at <xref target="deepspace_simulations"/>.</t>
+      <t>Two virtual machines (Ubuntu 26.04) emulate the Earth side (server, free-running reference clock) and the deep-space side (client). A network emulator (Linux netem) inserts a configurable one-way delay independently in each direction: symmetric one-way delays of 240, 1320, 3600 and 36000 seconds (RTTs of 8 minutes, 44 minutes, 2 hours, and 20 hours), and asymmetric splits of 270/210, 420/60 and 60/420 seconds at a constant 480-second RTT. All operating system time synchronization was disabled and masked on both machines; before every test the client clock was deliberately offset by about +300 seconds; packet captures on both machines and before/after clock probes document every run. It should be noted that using Virtual machines may have impact on the precision of the measurements, but the primary purpose was to test the specifications and implementations over much larger timeframes than the actual precision. Therefore, the actual real precision measured may not be as accurate as if done with real hardware.</t>
+      <t>Four independent implementations were used: ntpsec 1.2.3 (the ntpdig single-exchange client) <xref target="NTPSEC"/>, chrony 4.8 (full mitigation pipeline in one-shot mode, server mode, and NTS client mode) <xref target="CHRONY"/>, the ntp.org reference implementation 4.2.8p18 (sntp single-exchange client and ntpd server in orphan mode) <xref target="NTPORG"/>, and ntpd-rs 1.9.0 (daemon client and server, NTPv4 and native draft NTPv5) <xref target="NTPDRS"/>.</t>
+    </section>
+  </back>
+</rfc>

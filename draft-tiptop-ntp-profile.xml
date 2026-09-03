@@ -38,6 +38,7 @@
       <t>Deep space networks based on IP, as described in <xref target="I-D.ietf-tiptop-ip-architecture"/>, contain nodes whose clocks must be synchronized or at least related to Earth time scales, for navigation, science data timestamping, security protocols, and network operations. NTP <xref target="RFC5905"/> is the most widely deployed IP time synchronization protocol, which makes it a natural candidate for deep space time distribution. However, parts of its specification's algorithms and defaults, and mechanisms commonly layered on it, assume terrestrial round-trip times.</t>
       <t>The key characteristics of deep space communications, the connectivity scenarios, and the derived requirements are described in <xref target="I-D.ietf-tiptop-usecase"/>.</t>
       <t>Space missions have been using precise Position, Navigation and Timing(PNT) for various purposes, using specific channels. The use of NTP is not meant to replace PNT, but to provide a time synchronisation service to any computer in spacecrafts, in their payload, as well as assets on celestial body surface, where PNT is not available.</t>
+      <t>Missions may elect to compensate the relativistic time effects by some adjustments to the received time sync. However, such mechanism is outside the scope of this document</t>
     </section>
     <section anchor="deployment">
       <name>Deployment Model</name>
@@ -146,7 +147,7 @@
     </section>
     <section anchor="ack">
       <name>Acknowledgements</name>
-      <t>The following people provided useful comments to improve this document (in no specific order): Hal Murray</t>
+      <t>The following people provided useful comments to improve this document (in no specific order): Hal Murray, Gary Miller.</t>
     </section>
   </middle>
   <back>

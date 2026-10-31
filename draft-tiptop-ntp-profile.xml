@@ -40,6 +40,10 @@
       <t>Space missions have been using precise Position, Navigation and Timing(PNT) for various purposes, using specific channels. The use of NTP is not meant to replace PNT, but to provide a time synchronisation service to any computer in spacecrafts, in their payload, as well as assets on celestial body surface, where PNT is not available.</t>
       <t>Missions may elect to compensate the relativistic time effects by some adjustments to the received time sync. However, such mechanism is outside the scope of this document</t>
     </section>
+    <section>
+        <name>Discussion Location</name>
+        <t>This document should be discussed on the IETF TIPTOP working group (mailing list: deepspace@ietf.org) or the IETF NTP working group (mailing list: ntp@ietf.org). Comments can be sent to the working group mailing lists and/or to the document github repository: https://github.com/marcblanchet/draft-tiptop-ntp-profile</t>
+    </section>
     <section anchor="deployment">
       <name>Deployment Model</name>
       <t>In one time synchronization deployment model in deep space, the reference clocks and stratum 1 servers live on Earth. The NTP clients are the remote deep space assets: spacecrafts, orbiters, relays, landers, rovers, etc.</t>

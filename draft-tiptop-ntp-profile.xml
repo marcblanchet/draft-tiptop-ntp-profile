@@ -49,9 +49,10 @@
       <t>In one time synchronization deployment model in deep space, the reference clocks and stratum 1 servers live on Earth. The NTP clients are the remote deep space assets: spacecrafts, orbiters, relays, landers, rovers, etc.</t>
       <t>In addition, intermediate nodes such as orbiters, relays, gateways may additionally serve time onward to assets behind them, acting as clients toward Earth and servers toward their local network, at one stratum below their Earth source. Such relays advertise the root delay and root dispersion of their path to Earth, which has specific constraints described in <xref target="rootdelay"/>. Given these constraints and deep space long delays and intermittence, intermediate nodes may also declare themselves as root/stratum 1 with proper adjustment.</t>
       <t>Finally, it is expected that surface or orbital networks around celestial bodies may have reference clocks and stratum 1 servers to serve the celestial body surface network. In this case, it is expected that high connectivity and low latency similar to Earth Internet will be typical. No adaptations are identified as needed for this scenario, but this scenario is not discussed in this memo.</t>
-      <t>This profile only affects the NTP client, which is one expected to be in deep space. No changes are needed for the server, since it is stateless request processing (Section 8 of <xref target="RFC5905"/>) with no delay-sensitive element.<?xxe-remark danny
+      <t>This profile only affects the NTP client, which is one expected to be in deep space. No changes are needed for the server, since it is stateless request processing (Section 8 of <xref target="RFC5905"/>) with no delay-sensitive element.</t>
+        <?xxe-remark danny
                 2026-11-09T02:21:06Z
-                This is true only for a single clock. Most spacecraft are likely to have multiple clocks??></t>
+                This is true only for a single clock. Most spacecraft are likely to have multiple clocks??>
     </section>
     <section anchor="onwire">
       <name>NTP On-Wire Protocol And Distance</name>
@@ -59,12 +60,15 @@
       <t>However, there are client-side impacts:</t>
       <ul>
         <li>The client's response timeout must exceed the maximum of each round trip the operation needs times the maximum RTT of the mission (propagation plus any scheduled contact gap, as computed in <xref target="I-D.ietf-tiptop-usecase"/>), plus margin. While the specifications place no limit, common defaults in implementations are a few seconds (see <xref target="measurements"/>), unsuitable for most deep space scenarios and should be adjusted as above.</li>
-        <li>The client's poll interval must exceed the maximum RTT. Section 8 of <xref target="RFC5905"/> requires a client to validate a response against the origin timestamp of its most recent request (the "bogus packet" test, an anti-replay measure) and describes a single in-flight exchange per association. A client polling faster than the RTT replaces its expected origin before each response arrives, so every response fails the origin test and is discarded<?xxe-remark danny
+        <li>The client's poll interval must exceed the maximum RTT. Section 8 of <xref target="RFC5905"/> requires a client to validate a response against the origin timestamp of its most recent request (the "bogus packet" test, an anti-replay measure) and describes a single in-flight exchange per association. A client polling faster than the RTT replaces its expected origin before each response arrives, so every response fails the origin test and is discarded;
+          <?xxe-remark danny
 2026-11-11T15:52:37Z
-It is possible to have multiple requests in flight as long as the originating timestamps are kept until a response for that packet is received but you would need to be careful to prevent attacks. Note that an attacker can still hijack the response. The best solution would be using a MAC that can be authenticated.?>;
-        the protocol then never synchronizes, even though every packet is delivered intact. The specification's poll range accommodates most deep space missions without change: <?xxe-remark danny
+It is possible to have multiple requests in flight as long as the originating timestamps are kept until a response for that packet is received but you would need to be careful to prevent attacks. Note that an attacker can still hijack the response. The best solution would be using a MAC that can be authenticated.?>
+        the protocol then never synchronizes, even though every packet is delivered intact. The specification's poll range accommodates most deep space missions without change:
+          <?xxe-remark danny
 2026-11-11T16:04:23Z
-Note that the poll value is really not important here as it is more meant to prevent the server being overwhelmed with requests.  The actual polling by the client can be almost anything you need and can exceed any MAXPOLL value. Note the the poll field in the header is 8 bits so in reality you can make it 255 if you need it.?>MAXPOLL is 17 (2^17 s, about 36 hours, Section 7.2 of <xref target="RFC5905"/>).</li>
+Note that the poll value is really not important here as it is more meant to prevent the server being overwhelmed with requests.  The actual polling by the client can be almost anything you need and can exceed any MAXPOLL value. Note the the poll field in the header is 8 bits so in reality you can make it 255 if you need it.?>
+          MAXPOLL is 17 (2^17 s, about 36 hours, Section 7.2 of <xref target="RFC5905"/>).</li>
       </ul>
     </section>
     <section anchor="versions">
@@ -83,9 +87,10 @@ Note that the poll value is really not important here as it is more meant to pre
         <t>A server includes in its responses the root delay and root dispersion of its own synchronization path (Section 7.3 of <xref target="RFC5905"/>). A server synchronized to an upstream server sets its root delay to the upstream root delay plus its measured round-trip delay to that server (Section 11.2.3 of <xref target="RFC5905"/>). A relay synchronized to Earth over a deep space path therefore advertises a root delay at least equal to its Earth RTT: 480 seconds for a Mars relay at closest approach, 2640 seconds at conjunction.</t>
         <t>However, the specification has limitations:</t>
         <ul>
-          <li>Header validation: a client discards any response for which root delay/2 + root dispersion is equal to or larger than MAXDISP, 16 seconds (the packet() routine, Appendix A.5.1.1 of <xref target="RFC5905"/>). This check is independent of the distance threshold of <xref target="distlimit"/>: raising MAXDIST does not change it. A client of a relay whose Earth RTT exceeds 32 seconds discards every response of that relay.<?xxe-remark danny
+          <li>Header validation: a client discards any response for which root delay/2 + root dispersion is equal to or larger than MAXDISP, 16 seconds (the packet() routine, Appendix A.5.1.1 of <xref target="RFC5905"/>). This check is independent of the distance threshold of <xref target="distlimit"/>: raising MAXDIST does not change it. A client of a relay whose Earth RTT exceeds 32 seconds discards every response of that relay.
+            <?xxe-remark danny
 2026-11-11T16:53:04Z
-A client doesnot need to accept the limit. Earth-based clients should use these limits as guidelines but for space-based clients it's more of a judgment call on what the limits should be.?></li>
+A client does not need to accept the limit. Earth-based clients should use these limits as guidelines but for space-based clients it's more of a judgment call on what the limits should be.?></li>
 
           <li>NTPv4 field range: root delay and root dispersion use the NTP short format, 16 bits of unsigned seconds and 16 bits of fraction (Section 6 of <xref target="RFC5905"/>). The largest value is 65536 seconds (about 18.2 hours). A relay whose root delay exceeds this value cannot represent it.</li>
           <li>NTPv5 field range: root delay and root dispersion use the time32 type (Sections 5 and 6 of <xref target="I-D.ietf-ntp-ntpv5"/>), with 4 bits of integral seconds and a maximum value of 16 seconds. A relay whose Earth RTT exceeds 16 seconds cannot represent its root delay in NTPv5.<?xxe-remark danny

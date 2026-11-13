@@ -20,6 +20,15 @@
         <email>marc.blanchet@viagenie.ca</email>
       </address>
     </author>
+    <author fullname="Danny Mayer" initials="PDM">
+      <organization>Network Time Foundation</organization>
+      <address>
+        <postal>
+          <country>USA</country>
+        </postal>
+        <email>mayer@nwtime.org</email>
+      </address>
+    </author>
     <area>Internet</area>
     <workgroup>Internet Engineering Task Force</workgroup>
     <keyword>ntp</keyword>
